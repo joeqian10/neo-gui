@@ -7,6 +7,7 @@ using Neo.VM;
 using System;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Windows.Forms;
 
@@ -138,7 +139,24 @@ namespace Neo.UI
             if (tx == null) tx = new InvocationTransaction();
             tx.Version = 1;
             tx.Script = script;
+            // add an attribute to make each itx different
+            TransactionAttribute attr = new TransactionAttribute()
+            {
+                Usage = TransactionAttributeUsage.Description,
+                Data = ((BigInteger)DateTime.Now.ToTimestamp()).ToByteArray()
+            };
+            // add an attribute for signature
+            UInt160 defaultAddr = Program.CurrentWallet.GetChangeAddress();
+            TransactionAttribute attr2 = new TransactionAttribute()
+            {
+                Usage = TransactionAttributeUsage.Script,
+                Data = defaultAddr.ToArray()
+            };
             if (tx.Attributes == null) tx.Attributes = new TransactionAttribute[0];
+            var attrList = tx.Attributes.ToList(); 
+            attrList.Add(attr);
+            attrList.Add(attr2);
+            tx.Attributes = attrList.ToArray();
             if (tx.Inputs == null) tx.Inputs = new CoinReference[0];
             if (tx.Outputs == null) tx.Outputs = new TransactionOutput[0];
             if (tx.Witnesses == null) tx.Witnesses = new Witness[0];
@@ -153,6 +171,7 @@ namespace Neo.UI
                 tx.Gas = engine.GasConsumed - Fixed8.FromDecimal(10);
                 if (tx.Gas < Fixed8.Zero) tx.Gas = Fixed8.Zero;
                 tx.Gas = tx.Gas.Ceiling();
+                //tx.Gas += Fixed8.Satoshi;
                 Fixed8 fee = tx.Gas;
                 label7.Text = fee + " gas";
                 button3.Enabled = true;
